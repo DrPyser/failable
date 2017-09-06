@@ -1,4 +1,4 @@
-from .functionals import Monad
+from datatypes.functionals import Monad
 import functools as ft
 import itertools as it
 
@@ -85,12 +85,16 @@ class List(Monad, Cons):
         return self.cdr
     
     def __iter__(self):
-        yield self.head
-        yield from self.tail
+        x = self
+        while not x.is_empty():
+            yield x.head
+            x = x.tail
 
-    def cells(self):
-        yield self
-        yield from self.tail.cells()
+    def inits(self):
+        x = self
+        while not x.is_empty():
+            yield x
+            x = x.tail
         
         
     def is_empty(self):
