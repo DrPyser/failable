@@ -1,1 +1,1 @@
-__all__ = ["functionals", "failable", "list"]
+__all__ = ["functionals", "failable", "list", "maybe"]

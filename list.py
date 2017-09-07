@@ -1,11 +1,13 @@
-from datatypes.functionals import Monad
+from datatypes.functionals import (Monad, FunctoidalSingletonType)
 import functools as ft
 import itertools as it
+import basics
+
 
 class Cons(tuple):
     __slots__ = []
     def __new__(cls, car, cdr):
-        return super().__new__(cls, (car, cdr))
+        return tuple.__new__(cls, (car, cdr))
 
     @property
     def car(self):
@@ -17,53 +19,58 @@ class Cons(tuple):
 
     def __repr__(self):
         return "Cons({},{})".format(self.car,self.cdr)
+
+
+
+class Empty(Monad, metaclass=FunctoidalSingletonType):
+    __slots__ = []
+    def __new__(cls):
+        return super().__new__(cls)
+
+    def __repr__(self):
+        return "Empty"
+
+    def __str__(self):
+        return "Empty"
+
+    def __iter__(self):
+        while False:
+            yield None
+
+    def __len__(self):
+        return 0
+
+    @property
+    def tail(self):
+        raise AttributeError("Empty list has no tail")
+
+    @property
+    def head(self):
+        raise AttributeError("Empty list has no head")
+
+    def is_empty(self):
+        return True
+
+    def prepend(self, x):
+        return List(x)
+
+    def __add__(self, other):
+        return other
+
+    def fmap(self, f):
+        return self
+
+    def then(self, f):
+        return self
+
+    def ap(self, other):
+        return self
+
     
 class List(Monad, Cons):
-    class _Empty:
-        __slots__ = []
-        class Empty:
-            __slots__ = []
-            def __new__(cls):
-                return super().__new__(cls)
-
-            def __repr__(self):
-                return "Empty"
-
-            def __str__(self):
-                return "Empty"
-            
-            def __iter__(self):
-                while False:
-                    yield None
-                    
-            def __len__(self):
-                return 0
-            
-            @property
-            def tail(self):
-                raise AttributeError("Empty list has no tail")
-            
-            @property
-            def head(self):
-                raise AttributeError("Empty list has no head")
-                
-            def is_empty(self):
-                return True
-            
-            def prepend(self, x):
-                return List(x)
-            
-            def __add__(self, other):
-                return other
-                
-                
-        _instance = Empty()
-
-        def __new__(cls):
-            return cls._instance
-
-    Empty = _Empty()
-    non_functoids = Monad.non_functoids + ["head", "tail", "car", "cdr"]
+    Empty = Empty()
+    
+    non_functoids = Monad.non_functoids.union(["head", "tail", "car", "cdr"])
     
     def __new__(cls, *elements):
         return ft.reduce(lambda y,x: super(List, cls).__new__(cls, x, y), reversed(elements), List.Empty)
@@ -74,7 +81,6 @@ class List(Monad, Cons):
             return iterable
         else:
             return cls(*iterable)
-
     
     @property
     def head(self):
@@ -112,12 +118,14 @@ class List(Monad, Cons):
                 return y
             else:
                 return type(self).from_iterable(a for (i, a) in enumerate(y) if i%index.step == 0)
-        else:
+        elif index >= 0:
             for (i, x) in enumerate(self):
                 if i == index:
                     return x
-                else:
-                    raise Exception("List index out of bounds")
+            else:
+                raise Exception("List index out of bounds")
+        else:
+            raise TypeError("Invalid index: expected natural number")
     
     def __repr__(self):
         return "List({})".format(", ".join(map(str, iter(self))))
@@ -132,11 +140,16 @@ class List(Monad, Cons):
     
     def __add__(self, other):
         return ft.reduce(type(self).prepend, reversed(self), other)
-    
+
+    @classmethod
     def pure(cls, x):
         return cls(x)
+
+    @classmethod
+    def fail(cls, e):
+        return Empty
     
-    def bind(self, f):
+    def then(self, f):
         return ft.reduce(lambda y,x: y + f(x), self, type(self).Empty)
     
     def fmap(self, f):
@@ -156,11 +169,11 @@ class List(Monad, Cons):
 
 class suspended:
     """Data type for cachable suspended computations"""
+    __slots__ = ['_thunk', '_cached', '_value']
     def __init__(self, thunk):
         self._thunk = thunk
         self._cached = False
         self._value = None
-
 
     def is_cached(self):
         return self._cached
@@ -184,7 +197,16 @@ class suspended:
         """same as `compute`"""
         return self.compute()
 
+    def __repr__(self):
+        return "<suspended {!r}: {!s}>".format(self._thunk, self._value if self._cached else "<not computed>")
+    
 class LazyList(List):    
+
+    class LazyEmpty(Empty):
+        def prepend(self, x):
+            return LazyList(x)
+
+    Empty = LazyEmpty()
     
     def __new__(cls, *elements):
         return cls.from_iterable(elements)
@@ -196,8 +218,7 @@ class LazyList(List):
             return Cons.__new__(cls, next(iterator), suspended(lambda: cls.from_iterable(iterator)))
         except StopIteration:
             return cls.Empty
-    
-        
+ 
     @property
     def tail(self):
         return self.cdr.value
@@ -220,12 +241,15 @@ class LazyList(List):
     def __add__(self, other):
         return Cons.__new__(type(self), self.head, suspended(lambda: self.tail + other))
 
+    def prepend(self, x):
+        return Cons.__new__(type(self), x, suspended(lambda: self))
+
     def join(self):
         return Cons.__new__(type(self), self.head.head, suspended(lambda: self.head.tail + self.tail.join()))
     
-    def bind(self, f):
+    def then(self, f):
         x = f(self.head)
-        return Cons.__new__(type(self), x.head, suspended(lambda: x.head.tail + self.tail.bind(f)))
+        return Cons.__new__(type(self), x.head, suspended(lambda: x.head.tail + self.tail.then(f)))
     
     def fmap(self, f):
         return Cons.__new__(type(self), f(self.head), suspended(lambda: self.tail.fmap(f)))

@@ -30,6 +30,12 @@ class Functoid:
     def __repr__(self):
         return "<functoid of {}>".format(str(self._func))
 
+    def __get__(self, instance, owner):
+        return Functoid(self._func.__get__(instance, owner))
+
+    def __set__(self, instance, value):
+        return self._func.__set__(instance, value)
+    
 
 class FunctoidDescriptor:
     def __init__(self, descriptor):
@@ -46,21 +52,42 @@ class FunctoidDescriptor:
 
     
 class FunctoidalType(type):
-    def __getattribute__(cls, name):
-        attr = super(FunctoidalAbstractType, cls).__getattribute__(name)
-        return Functoid(attr) if callable(attr) else attr
-    
-class FunctoidalAbstractType(ABCMeta):    
-    def __getattribute__(cls, name):
-        attr = super(FunctoidalAbstractType, cls).__getattribute__(name)
-        return Functoid(attr) if callable(attr) and name not in cls.non_functoids else attr
+    # def __new__(cls, name, bases, attrs):
+    #     ignored_defaults = vars(object)
+    #     ignored = attrs.get("non_functoids", ignored_defaults)
+    #     attrs = {k:(Functoid(f) if callable(f) and k not in ignored else f) for (k,f) in attrs.items()}
+    #     return super().__new__(cls, name, bases, attrs)
 
+    def __init__(cls, name, bases, attrs):
+        super().__init__(name, bases, attrs)
+        if 'non_functoids' in dir(cls):
+            ignored = type.__getattribute__(cls, 'non_functoids')
+            type.__setattr__(cls, 'non_functoids', frozenset(ignored).union(dir(object)))
+        else:
+            cls.non_functoids = dir(object)
+       
+        
+    def __getattribute__(cls, name):
+        attr = type.__getattribute__(cls, name)
+        ignored = type.__getattribute__(cls, 'non_functoids')
+        return Functoid(attr) if callable(attr) and name not in ignored else attr
+    
+class FunctoidalAbstractType(FunctoidalType, ABCMeta):
+    def __init__(cls, name, bases, attrs):
+        FunctoidalType.__init__(cls, name, bases, attrs)
+        ABCMeta.__init__(cls, name, bases, attrs)
 
 class FunctoidalABC(metaclass=FunctoidalAbstractType):
-    non_functoids = [x for x in vars(object)]
+    non_functoids = dir(object)
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
         return Functoid(attr) if callable(attr) and name not in type(self).non_functoids else attr
+
+        
+class FunctoidalSingletonType(FunctoidalAbstractType, SingletonType):
+    def __init__(cls, name, bases, attrs):
+        FunctoidalAbstractType.__init__(cls, name, bases, attrs)
+        SingletonType.__init__(cls, name, bases, attrs)
     
 
 class Functor(FunctoidalABC):
@@ -85,7 +112,7 @@ class Applicative(Functor):
     
 class Monad(Applicative):
     @abstractmethod
-    def bind(self, f):
+    def then(self, f):
         raise NotImplementedError()
 
     def fmap(self, f):
