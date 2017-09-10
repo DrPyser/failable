@@ -1,8 +1,7 @@
-# from .. import *
-# from . import functionals
-# from . import linkedlist
-# from . import failable
-# from . import maybe 
+# from . import multimethods
+# from . import basics
+# from . import currying
+# from . import functoid
+# from . import datatypes
 
-
-__all__ = ["functionals", "failable", "linkedlist", "maybe"]
+__all__ = ["basics", "currying", "datatypes", "multimethods", "functoid"]
