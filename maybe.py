@@ -1,12 +1,14 @@
-from datatypes.functionals import (Monad, FunctoidalSingletonType)
-from currying import curry
-import basics
 from abc import abstractmethod
+from itertools import tee
+from ..currying import curry
+from ..basics import data
+from .functionals import (Monad,)
+from typing import *
 
-
-class maybe(Monad, tuple):
-    """Result of a partial computation"""
-
+@Monad.register
+class Maybe(data):
+    """Result of a partial computation(computation not defined onn all its inputs)"""
+    __functoid_include__ = locals()
     @abstractmethod
     def is_just(self):
         raise NotImplementedError()
@@ -23,56 +25,65 @@ class maybe(Monad, tuple):
     def __rshift__(self, other):
         raise NotImplementedError()
 
+    @abstractmethod
+    def maybe(self, something, nothing):
+        pass
+    
     @classmethod
     def pure(cls, x):
-        return just(x)
+        return Just(x)
 
     @classmethod
     def fail(cls, x):
-        return nothing()
+        return Nothing()
 
     @staticmethod
     def from_none(value):
         if value is None:
-            return nothing()
+            return Nothing()
         else:
-            return just(value)
+            return Just(value)
 
     @staticmethod
     def from_truthiness(value):
         if value:
-            return just(value)
+            return Just(value)
         else:
-            return nothing()
+            return Nothing()
 
     @staticmethod
     def validate(pred, value):
         if pred(value):
-            return just(value)
+            return Just(value)
         else:
-            return nothing()
+            return Nothing()
 
     @staticmethod
     def invalidate(pred, value):
         if not pred(value):
-            return just(value)
+            return Just(value)
         else:
-            return nothing()
+            return Nothing()
 
     @staticmethod
     @curry(2, True)
     def catch(exns, f, *args, **kwargs):
         try:
-            return just(f(*args, **kwargs))
+            return Just(f(*args, **kwargs))
         except exns:
-            return nothing()
+            return Nothing()
 
+    def collect(maybes):
+        (maybes, maybes2) = tee(maybes)
+        if any(x.is_nothing() for x in maybes):
+            return Nothing()
+        else:
+            return Just(tuple(x.value for x in maybes2))
         
-class nothing(maybe, metaclass=FunctoidalSingletonType):
-    __slots__ = []
-    def __new__(cls):
-        return super().__new__(cls)
-    
+        
+class Nothing(Maybe, cached=True):
+    __fields__ = ()
+
     def is_just(self):
         return False
     
@@ -93,17 +104,24 @@ class nothing(maybe, metaclass=FunctoidalSingletonType):
 
     def join(self):
         return self
-
-    def __repr__(self):
-        return "nothing"
         
     def from_just(self, default=None):
         return default
 
+    def __repr__(self):
+        return "Nothing"
 
-class just(maybe):
-    def __new__(cls, x):
-        return super().__new__(cls, (x,))
+    def __add__(self, other):
+        return self
+
+    def __rshift__(self, other):
+        return self
+
+    def maybe(self, something, nothing):
+        return nothing()
+
+class Just(Maybe):
+    __fields__ = ("value",)
 
     def is_just(self):
         return True
@@ -111,12 +129,8 @@ class just(maybe):
     def is_nothing(self):
         return False
 
-    @property
-    def value(self):
-        return self[0]
-
     def fmap(self, f):
-        return just(f(self.value))
+        return Just(f(self.value))
 
     def then(self, f):
         return f(self.value)
@@ -131,4 +145,22 @@ class just(maybe):
         return other
 
     def __repr__(self):
-        return "just({!r})".format(self.value)
+        return "Just({!r})".format(self.value)
+
+    def __add__(self, other):
+        if other.is_just():
+            return Just(self.value + other.value)
+        else:
+            return other
+
+    def maybe(self, something, nothing):
+        return something(self.value)
+
+if __name__ == "__main__":
+    @Maybe.catch((Exception,))
+    def test(x):
+        if x:
+            return x
+        else:
+            raise Exception("Oh no!")
+        

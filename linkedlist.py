@@ -1,32 +1,30 @@
-from datatypes.functionals import (Monad, FunctoidalSingletonType)
 import functools as ft
 import itertools as it
-import basics
+from ..basics import (data,)
+from .functionals import (Monad,)
 
 
-class Cons(tuple):
-    __slots__ = []
-    def __new__(cls, car, cdr):
-        return tuple.__new__(cls, (car, cdr))
+class Cons(data):
+    __fields__ = ("car", "cdr")
+    # @property
+    # def car(self):
+    #     return tuple.__getitem__(self, 0)
 
-    @property
-    def car(self):
-        return tuple.__getitem__(self, 0)
-
-    @property
-    def cdr(self):
-        return tuple.__getitem__(self, 1)
+    # @property
+    # def cdr(self):
+    #     return tuple.__getitem__(self, 1)
 
     def __repr__(self):
         return "Cons({},{})".format(self.car,self.cdr)
 
 
+@Monad.register
+class Empty(data, cached=True, maxsize=1):
+    # __slots__ = []
+    # def __new__(cls):
+    #     return super().__new__(cls)
 
-class Empty(Monad, metaclass=FunctoidalSingletonType):
-    __slots__ = []
-    def __new__(cls):
-        return super().__new__(cls)
-
+    __fields__ = ()
     def __repr__(self):
         return "Empty"
 
@@ -66,11 +64,11 @@ class Empty(Monad, metaclass=FunctoidalSingletonType):
     def ap(self, other):
         return self
 
-    
-class List(Monad, Cons):
+@Monad.register
+class List(Cons):
     Empty = Empty()
     
-    non_functoids = Monad.non_functoids.union(["head", "tail", "car", "cdr"])
+    # non_functoids = Monad.non_functoids.union(["head", "tail", "car", "cdr"])
     
     def __new__(cls, *elements):
         return ft.reduce(lambda y,x: super(List, cls).__new__(cls, x, y), reversed(elements), List.Empty)
@@ -201,7 +199,7 @@ class suspended:
         return "<suspended {!r}: {!s}>".format(self._thunk, self._value if self._cached else "<not computed>")
     
 class LazyList(List):    
-
+    
     class LazyEmpty(Empty):
         def prepend(self, x):
             return LazyList(x)
@@ -253,3 +251,5 @@ class LazyList(List):
     
     def fmap(self, f):
         return Cons.__new__(type(self), f(self.head), suspended(lambda: self.tail.fmap(f)))
+
+    
