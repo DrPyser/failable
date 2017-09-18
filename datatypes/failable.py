@@ -13,11 +13,6 @@ def is_not_none(x):
 
 @Monad.register
 class Failable(data):
-    # def __new__(cls, x):
-    #     return tuple.__new__(cls, (x,))
-    # @property
-    # def value(self):
-    #     return self[0]
     
     @abstractmethod
     def is_failure(self):
@@ -137,7 +132,7 @@ class Failable(data):
 
         
 class Failure(Failable):
-    __fields__ = ("value",)
+    _fields = ("value",)
 
     def is_failure(self):
         return True
@@ -183,7 +178,7 @@ class Failure(Failable):
         return self.value
     
 class Success(Failable):
-    __fields__ = ("value",)
+    _fields = ("value",)
     
     def is_failure(self):
         return False

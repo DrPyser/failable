@@ -4,7 +4,7 @@ import itertools as it
 import functools as ft
 import operator as op
 from ..basics import *
-from ..multimethods import (multimethod, method, type_dispatch)
+from ..multimethods import (multimethod, method, Type)
 
 
 class Functor(ABC):
@@ -76,7 +76,7 @@ class ArrayList(Monad, list):
         
 @multimethod
 def then(m, f):
-    return type_dispatch(m, f)
+    return Type
 
 @method(then, Monad)
 def then(m, f):
@@ -90,7 +90,7 @@ def then(m, f):
 @multimethod
 def fmap(f, g):
     """Multimethod for 'fmap' functor operation"""
-    return type_dispatch(g, f)
+    return Type
 
 @method(fmap, Functor)
 def fmap(f, g):
@@ -103,7 +103,7 @@ def fmap(f,g):
 @multimethod
 def ap(f, g):
     """Multimethod for 'ap' applicative operation"""
-    return type_dispatch(f, g)
+    return Type
 
 @method(ap, Applicative, Applicative)
 def ap(f,g):
@@ -116,7 +116,7 @@ def ap(f,g):
 
 @multimethod
 def join(m):
-    return type_dispatch(m)
+    return Type
 
 @method(join, Monad)
 def join(m):

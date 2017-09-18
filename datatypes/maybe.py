@@ -8,7 +8,7 @@ from typing import *
 @Monad.register
 class Maybe(data):
     """Result of a partial computation(computation not defined onn all its inputs)"""
-    __functoid_include__ = locals()
+#    __functoid_include__ = locals()
     @abstractmethod
     def is_just(self):
         raise NotImplementedError()
@@ -82,7 +82,7 @@ class Maybe(data):
         
         
 class Nothing(Maybe, cached=True):
-    __fields__ = ()
+    _fields = ()
 
     def is_just(self):
         return False
@@ -121,8 +121,9 @@ class Nothing(Maybe, cached=True):
         return nothing()
 
 class Just(Maybe):
-    __fields__ = ("value",)
-
+    value: Any
+    #_fields = ("value",)
+    
     def is_just(self):
         return True
     
