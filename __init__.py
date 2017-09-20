@@ -4,4 +4,4 @@
 # from . import functoid
 # from . import datatypes
 
-__all__ = ["basics", "currying", "datatypes", "multimethods", "functoid"]
+__all__ = ["basics", "currying", "datatypes", "multimethods", "functoid", "patmat", "singleton"]

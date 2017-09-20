@@ -18,7 +18,7 @@ class curried(partial):
 
     def curry(self, *args, **kwargs):
         missing = max(self._autocurried-len(args)-len(kwargs), 0)
-        return curried(self.func, missing, missing > 0 and self._curry_last, self.args+args, dict(**self.keywords, **kwargs))
+        return curried(self.func, missing, missing > 0 and self._curry_last, self.args+args, dict(self.keywords, **kwargs))
 
     def __repr__(self):
         return "<curried {}:({}, {})>".format(self.func, self.args, self.keywords)

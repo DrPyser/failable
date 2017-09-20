@@ -1,7 +1,7 @@
 from abc import (ABC, ABCMeta, abstractmethod)
-from typing import *
+#from typing import *
 from itertools import (tee,)
-from ..basics import data
+from .adt import data
 from ..currying import curry
 from .functionals import Monad
 

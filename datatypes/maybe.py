@@ -1,9 +1,9 @@
 from abc import abstractmethod
 from itertools import tee
 from ..currying import curry
-from ..basics import data
+from .adt import data
 from .functionals import (Monad,)
-from typing import *
+from typing import Any
 
 @Monad.register
 class Maybe(data):
@@ -122,7 +122,6 @@ class Nothing(Maybe, cached=True):
 
 class Just(Maybe):
     value: Any
-    #_fields = ("value",)
     
     def is_just(self):
         return True

@@ -1,18 +1,11 @@
 import functools as ft
 import itertools as it
-from ..basics import (data,)
-from .functionals import (Monad,)
-
+from .adt import data
+from .functionals import Monad
+from ..patmat import MatchFailure
 
 class Cons(data):
-    __fields__ = ("car", "cdr")
-    # @property
-    # def car(self):
-    #     return tuple.__getitem__(self, 0)
-
-    # @property
-    # def cdr(self):
-    #     return tuple.__getitem__(self, 1)
+    _fields = ("car", "cdr")
 
     def __repr__(self):
         return "Cons({},{})".format(self.car,self.cdr)
@@ -20,11 +13,8 @@ class Cons(data):
 
 @Monad.register
 class Empty(data, cached=True, maxsize=1):
-    # __slots__ = []
-    # def __new__(cls):
-    #     return super().__new__(cls)
-
-    __fields__ = ()
+    _fields = ()
+    
     def __repr__(self):
         return "Empty"
 
@@ -38,6 +28,16 @@ class Empty(data, cached=True, maxsize=1):
     def __len__(self):
         return 0
 
+    def __add__(self, other):
+        return other
+
+    @classmethod
+    def __extract__(cls, x):
+        if isinstance(x, cls):
+            return x
+        else:
+            raise MatchFailure()
+        
     @property
     def tail(self):
         raise AttributeError("Empty list has no tail")
@@ -51,9 +51,6 @@ class Empty(data, cached=True, maxsize=1):
 
     def prepend(self, x):
         return List(x)
-
-    def __add__(self, other):
-        return other
 
     def fmap(self, f):
         return self
@@ -71,7 +68,10 @@ class List(Cons):
     # non_functoids = Monad.non_functoids.union(["head", "tail", "car", "cdr"])
     
     def __new__(cls, *elements):
-        return ft.reduce(lambda y,x: super(List, cls).__new__(cls, x, y), reversed(elements), List.Empty)
+        tail = List.Empty
+        for x in reversed(elements):
+            tail = Cons.__new__(cls, x, tail)
+        return tail
         
     @classmethod
     def from_iterable(cls, iterable):
@@ -99,6 +99,7 @@ class List(Cons):
         while not x.is_empty():
             yield x
             x = x.tail
+        yield x
         
         
     def is_empty(self):
@@ -126,12 +127,23 @@ class List(Cons):
             raise TypeError("Invalid index: expected natural number")
     
     def __repr__(self):
-        return "List({})".format(", ".join(map(str, iter(self))))
+        return "List({})".format(", ".join(map(str, self)))
         
     
     @classmethod
     def cons(cls, a, b):
         return b.prepend(a)
+
+    @staticmethod
+    def __extract__(x):
+        """Deconstuct a list by returning its head and tail"""
+        if not isinstance(x, List):
+            raise MatchFailure()
+        else:
+            return x.head, x.tail
+
+    def uncons(self):
+        return self.head, self.tail
         
     def prepend(self, x):
         return super().__new__(type(self), x, self)

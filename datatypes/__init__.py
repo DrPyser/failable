@@ -5,4 +5,4 @@
 # from . import maybe 
 
 
-__all__ = ["functionals", "failable", "linkedlist", "maybe"]
+__all__ = ["functionals", "failable", "linkedlist", "maybe", "arraylist"]
