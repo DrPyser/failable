@@ -31,12 +31,12 @@ class Empty(data, cached=True, maxsize=1):
     def __add__(self, other):
         return other
 
-    @classmethod
-    def __extract__(cls, x):
-        if isinstance(x, cls):
-            return x
-        else:
-            raise MatchFailure()
+    # @classmethod
+    # def __match__(cls, x):
+    #     if isinstance(x, cls):
+    #         return x
+    #     else:
+    #         raise MatchFailure()
         
     @property
     def tail(self):
@@ -94,6 +94,14 @@ class List(Cons):
             yield x.head
             x = x.tail
 
+    # @classmethod
+    # def __match__(cls, x):
+    #     if isinstance(x, cls):
+    #         return x.head, x.tail
+    #     else:
+    #         raise MatchFailure()
+    
+            
     def inits(self):
         x = self
         while not x.is_empty():
@@ -134,13 +142,6 @@ class List(Cons):
     def cons(cls, a, b):
         return b.prepend(a)
 
-    @staticmethod
-    def __extract__(x):
-        """Deconstuct a list by returning its head and tail"""
-        if not isinstance(x, List):
-            raise MatchFailure()
-        else:
-            return x.head, x.tail
 
     def uncons(self):
         return self.head, self.tail

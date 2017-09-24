@@ -1,6 +1,7 @@
 from abc import ABCMeta
 from operator import itemgetter
 from cachetools import LRUCache
+from ..patmat import MatchFailure
 
 def tuple_itemgetter(i):
     def tuple_itemgetter2(x):
@@ -64,3 +65,10 @@ class data(tuple, metaclass=ADTMeta):
 
     def __repr__(self):
         return "{}({})".format(type(self).__name__, ",".join(map(str, self)))
+
+    @classmethod
+    def __match__(cls, x):
+        if isinstance(x, cls):
+            return tuple.__iter__(x)
+        else:
+            raise MatchFailure()

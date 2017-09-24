@@ -4,6 +4,7 @@ from ..currying import curry
 from .adt import data
 from .functionals import (Monad,)
 from typing import Any
+from ..patmat import MatchFailure
 
 @Monad.register
 class Maybe(data):
@@ -90,9 +91,6 @@ class Nothing(Maybe, cached=True):
     def is_nothing(self):
         return True
     
-    def __rshift__(self, other):
-        return self
-    
     def then(self, f):
         return self
 
@@ -119,6 +117,7 @@ class Nothing(Maybe, cached=True):
 
     def maybe(self, something, nothing):
         return nothing()
+
 
 class Just(Maybe):
     value: Any

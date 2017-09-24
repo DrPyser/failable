@@ -39,17 +39,18 @@ class matchstatus(Enum):
     failed = 1
     succeeded = 2
 
+    
 
 class casecontext:
-    def __init__(self, match_context, extractor=None):
-        self._extractor = extractor
+    def __init__(self, match_context, pattern=None):
+        self._pattern = pattern
         self._match_context = match_context
 
     def __enter__(self):
         self._match_context._activate(self)
         self._match_context._status = matchstatus.pending
-        if self._extractor is not None:
-            return extractorcontext(self._extractor, self._match_context.match_value)
+        if self._pattern is not None:
+            return patterncontext(self._pattern, self._match_context.match_value)
         else:
             return None
 
@@ -83,18 +84,16 @@ class match:
     def match_value(self):
         return self._matching
     
-    def case(self, extractor=None):
+    def case(self, pattern=None):
         """Generates a case context.
         If an extractor is provided, binds an extractor context to the 'as' clause.
         Silence MatchFailure exceptions and raise MatchSuccess if all goes okay."""        
-        context = casecontext(self, extractor)
+        context = casecontext(self, pattern)
         return context
-            
    
     def ignore(self):
         """Equivalent to self.case(ignore), introduce a context without binding anything."""
         return casecontext(self)
-
 
     def _activate(self, case):
         self._actives.append(case)
@@ -112,45 +111,77 @@ class match:
             raise MatchFailure("No provided pattern matched value {!r}".format(self._matching)) from None
 
 
-class Extractor(ABC):
+class Pattern(ABC):
+    def __call__(self, x):
+        return self.__match__(x)
+
     @abstractmethod
-    def __extract__(self, x):
-        """Extract a value or a tuple of values from argument"""
+    def __match__(self, x):
+        """Try and match its argument 
+        and return a value or a tuple of values, or raise MatchFailure"""
         pass
 
-    def __call__(self, x):
-        return self.__extract__(x)
 
-
-class ClassExtractor(ABC):
+class ClassPattern(ABC):
     @classmethod
     @abstractmethod
-    def __extract__(cls, x):
-        """Extract a value or a tuple of values from argument"""
+    def __match__(cls, x):
+        """Try and match its argument 
+        and return a value or a tuple of values, or raise MatchFailure"""
         pass
 
-class StaticExtractor(ABC):
+
+class StaticPattern(ABC):
     @staticmethod
     @abstractmethod
-    def __extract__(x):
-        """Extract a value or a tuple of values from argument"""
+    def __match__(x):
+        """Try and match its argument 
+        and return a value or a tuple of values, or raise MatchFailure"""
         pass
 
-    
-def extract(extractor, extractee):
-    return extractor.__extract__(extractee)
-    
         
-class extractor:
-    """Wrapper class to wrap extraction functionss"""
-    def __init__(self, f):
-        self._extractor = f
+def getmatch(pattern, matched):
+    return pattern.__match__(matched)
 
-    def __extract__(self, x):
-        return self._extractor(x)
+
+def predicate_method(f):
+    @wraps(f)
+    def wrapper(self, arg):
+        if f(self, arg):
+            return arg
+        else:
+            raise MatchFailure()
+    return wrapper
+
+def predicate_classmethod(f):
+    @wraps(f)
+    def wrapper(cls, arg):
+        if f(cls, arg):
+            return arg
+        else:
+            raise MatchFailure()
+    return wrapper
+
+
+def predicate_function(f):
+    @wraps(f)
+    def wrapper(arg):
+        if f(arg):
+            return arg
+        else:
+            raise MatchFailure()
+    return wrapper
+
+class pattern(Pattern):
+    """Wrapper class to wrap match functions"""
+    def __init__(self, f):
+        self._matchf = f
+
+    def __match__(self, x):
+        return self._matchf(x)
 
     def __call__(self, x):
-        return extractorcontext(self, x)
+        return patterncontext(self, x)
 
     @classmethod
     def from_exceptions(cls, *exceptions):
@@ -178,40 +209,40 @@ class extractor:
         return wraps(f)(cls(wrapper))
 
 
-class extractorcontext:
+class patterncontext:
     """Context manager generator for creating a block
-    binding the result of a successful extractor"""
+    binding the result of a successful pattern"""
 
-    def __init__(self, extractor, value):
-        self._extractor = extractor
-        self._extractee = value
+    def __init__(self, pattern, value):
+        self._pattern = pattern
+        self._match = value
 
-    def __extract__(self, x):
-        return self._extractor.__extract__(x)
+    def __match__(self, x):
+        return self._pattern.__match__(x)
         
     def __enter__(self):
-        return self._extractor.__extract__(self._extractee)
+        return self._pattern.__match__(self._match)
 
     def __exit__(self, *excs):
-        return
+        return None
 
     def __call__(self):
-        return self._extractor.__extract__(self._extractee)
+        return self._pattern.__match__(self._match)
 
     
-class key(Extractor):
+class key(Pattern):
     def __init__(self, key):
         self._key = key
-        
-    def __extract__(self, x):
+
+    #@Pattern.from_exceptions(KeyError, TypeError)
+    def __match__(self, x):
         try:
             return x[self._key]
         except (KeyError, TypeError) as ex:
             raise MatchFailure(str(ex)) from None
 
 
-
 def _ignore(x):
     return None
         
-ignore = extractor(_ignore)
+ignore = pattern(_ignore)
