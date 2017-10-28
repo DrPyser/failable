@@ -1,13 +1,4 @@
-import functools as ft
-from operator import *
-import cachetools as ct
-from typing import GenericMeta
-from .currying import curried, curry
-from abc import ABCMeta, ABC
-
-# from .functoid import Functoid
-
-## Basic functional programming tools
+## Basic simple functional programming tools
 
 
 def identity(x):
@@ -15,11 +6,11 @@ def identity(x):
 
 
 def const(x):
-    return lambda _: x
+    return lambda *args, **kwargs: x
 
 
 def compose2(f, g):
-    return lambda x:f(g(x))
+    return lambda *args, **kwargs: f(g(*args, **kwargs))
 
 
 def compose(*callables):
@@ -27,15 +18,33 @@ def compose(*callables):
 
 
 def uncurry(f):
-    return lambda args: f(*args)
+    lambda args=(),kwargs=None: f(*args, **(kwargs or {}))
 
 
 def flip(f):
+    """Return a function which calls the argument function 
+    with its positional arguments flipped"""
     return lambda *args, **kwargs: f(*reversed(args), **kwargs)
 
 
+def unit(x):
+    yield x
+
+
+def applier(*args, **kwargs):
+    return lambda f: f(*args, **kwargs)
+
+    
+def caller(f):
+    return lambda *args, **kwargs: f(*args, **kwargs)
+
+
 def singleton(*args, **kwargs):
+    """Decorator which replaces a class definition
+    by an instance of this class"""
     def decorator(f):
         return f(*args, **kwargs)
     return decorator
-    
+
+
+
