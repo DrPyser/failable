@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from operator import itemgetter
 from cachetools import LRUCache
-from ..patmat import MatchFailure
+from funklib.multimethods.patmat import MatchFailure
 
 def tuple_itemgetter(i):
     def tuple_itemgetter2(x):
@@ -41,9 +41,12 @@ class ADTMeta(ABCMeta):
         # else:
         #     cls.__functoid_include__ = cls.__functoid_exclude__ = frozenset(())
         
-            
+           
     
 class data(tuple, metaclass=ADTMeta):
+    """
+    Base class for ADT-like datatypes        
+    """
     def __new__(cls, *args, **kwargs):
         if len(kwargs) + len(args) != len(cls._fields):
             raise TypeError(("Wrong number of arguments given to constructor of class {}."

@@ -1,5 +1,5 @@
 ## Basic simple functional programming tools
-
+import functools as ft
 
 def identity(x):
     return x
@@ -31,6 +31,19 @@ def unit(x):
     yield x
 
 
+def flatmap(it, f):
+    """
+    Chain iterable-producing functions
+    """
+    for x in it:
+        yield from f(x)
+    
+
+def flatten(it):
+    for x in it:
+        yield from x
+
+        
 def applier(*args, **kwargs):
     return lambda f: f(*args, **kwargs)
 
@@ -45,6 +58,5 @@ def singleton(*args, **kwargs):
     def decorator(f):
         return f(*args, **kwargs)
     return decorator
-
 
 

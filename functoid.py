@@ -1,24 +1,23 @@
 from abc import ABC, ABCMeta
-# from .basics import SingletonType
-from .currying import curried, curry
-from functools import wraps
+from currying import curried, curry
+from functools import wraps, partial
 
-class Functoid(curried):
+class Functoid(partial):
     """Wrapper class for functions and callables"""
 
     def __init__(self, function, *args, **kwargs):
+        super().__init__()
         self.__name__ = function.__name__
         self.__doc__ = function.__doc__
 
     def before(self, f):
-        return Functoid(lambda *args, **kwargs: f(self(*args, **kwargs)), self._autocurried, self._curry_last)
+        return Functoid(lambda *args, **kwargs: f(self(*args, **kwargs)))
     
     def after(self, f):
-        return Functoid(lambda *args, **kwargs: self(f(*args, **kwargs)), self._autocurried, self._curry_last)
+        return Functoid(lambda *args, **kwargs: self(f(*args, **kwargs)))
 
     def flip(self):
-        return Functoid(lambda *args, **kwargs: self.func(*reversed(args), **kwargs),
-                          self._autocurried, self._curry_last, self.args, self.keywords)
+        return Functoid(lambda *args, **kwargs: self.func(*reversed(args), **kwargs))
 
     def __rshift__(self, f):
         return self.before(f)
@@ -27,8 +26,7 @@ class Functoid(curried):
         return self.after(f)
 
     def curry(self, *args, **kwargs):
-        missing = self._autocurried - len(args) - len(kwargs)
-        return Functoid(self.func, missing, missing > 0 and self._curry_last, self.args+args, dict(self.keywords, **kwargs))
+        return Functoid(self.func, *self.args, *args, **dict(self.kwargs, **kwargs))
     
     def uncurry(self):
         return Functoid(lambda args: self(*args))
@@ -37,19 +35,17 @@ class Functoid(curried):
         return "<functoid of {}:({},{})>".format(self.func, self.args, self.keywords)
 
     def __str__(self):
-        return "functoid {}".format(self.func)
+        return "Functoid {}".format(self.__name__)
 
     def __get__(self, instance, owner):
-        return Functoid(self.func.__get__(instance, owner), self._autocurried, self._curry_last, self.args, self.keywords)
+        return Functoid(self.func.__get__(instance, owner), *self.args, **self.keywords)
 
     def __set__(self, instance, value):
         return self.func.__set__(instance, value)
 
 
-def functoid(n=0, curry_last=False):
-    def decorator(f):        
-        return wraps(f)(Functoid(f,n,curry_last))
-    return decorator
+def functoid(f):
+    return wraps(f)(Functoid(f))
 
 
 class FunctoidDescriptor:

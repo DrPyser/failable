@@ -3,8 +3,10 @@ from collections.abc import Iterable
 import itertools as it
 import functools as ft
 import operator as op
-from ..basics import *
-from ..multimethods import (multimethod, method, Type)
+import typing
+from funklib.basics import *
+from multimethods import (multimethod, method, Type, generic)
+from functools import wraps
 
 
 class Functor(ABC):
@@ -29,23 +31,23 @@ class Applicative(Functor):
     
 class Monad(Applicative):
     @abstractmethod
-    def then(self, f):
+    def flatmap(self, f):
         raise NotImplementedError()
 
     def fmap(self, f):
-        return self.then(Functoid(f).before(self.pure))
+        return self.flatmap(Functoid(f).before(self.pure))
 
-    def join(self):
-        return self.then(identity)
+    def flatten(self):
+        return self.flatmap(identity)
 
     def ap(self, g):
-        return self.then(g.fmap)
+        return self.flatmap(g.fmap)
 
     @classmethod
     @abstractmethod
     def fail(cls, msg):
         raise NotImplementedError()
-    
+
 class Monoid:
     def __init__(self, op, identity):
         self.op = op
@@ -69,28 +71,52 @@ class ArrayList(Monad, list):
     def pure(cls, x):
         return cls((x,))
 
-    def then(self, f):
+    def flatmap(self, f):
         return ArrayList(ft.reduce(lambda y, x: it.chain(y, f(x)), self, []))
 
+
+class Stream(Monad):
+    """Monadic wrapper for sequences"""
+    def __init__(self, iterable):
+        self.data = iterable
+
+    def __iter__(self):
+        return iter(self.data)
     
+    @classmethod
+    def pure(cls, x):
+        return (yield x)
+
+    def flatmap(self, f):
+        for x in self:
+            yield from f(x)
+
+    def fmap(self, f):
+        return map(f, self)
+
+    def flatten(self):
+        return chain.from_iterable(self)    
+
+    def fail(self, msg):
+        return (yield from ())
         
-@multimethod
-def then(m, f):
-    return Type
+@generic(pattern=Type)
+def flatmap(m, f):
+    pass
 
-@method(then, Monad)
-def then(m, f):
-    return m.then(f)
+@method(flatmap, Monad)
+def flatmap(m, f):
+    return m.flatmap(f)
 
-@method(then, Iterable)
-def then(m, f):
-    return it.chain.from_iterable(map(f, m))
+@method(flatmap, Iterable)
+def flatmap(m, f):
+    for x in m:
+        yield from f(x)
     
-    
-@multimethod
+@generic(pattern=Type)
 def fmap(f, g):
     """Multimethod for 'fmap' functor operation"""
-    return Type
+    pass
 
 @method(fmap, Functor)
 def fmap(f, g):
@@ -100,10 +126,10 @@ def fmap(f, g):
 def fmap(f,g):
     return map(f, g)
 
-@multimethod
+@generic(pattern=Type)
 def ap(f, g):
     """Multimethod for 'ap' applicative operation"""
-    return Type
+    pass
 
 @method(ap, Applicative, Applicative)
 def ap(f,g):
@@ -111,17 +137,19 @@ def ap(f,g):
 
 @method(ap, Iterable, Iterable)
 def ap(f,g):
-    return (ff(gx) for ff in f for gx in g)
+    for ff in f:
+        for gg in g:
+            yield ff(gg)
 
 
-@multimethod
-def join(m):
-    return Type
+@generic(pattern=Type)
+def flatten(m):
+    pass 
 
-@method(join, Monad)
-def join(m):
-    return m.join()
+@method(flatten, Monad)
+def flatten(m):
+    return m.flatten()
     
-@method(join, Iterable)
-def join(i):
+@method(flatten, Iterable)
+def flatten(i):
     return it.chain.from_iterable(i)
