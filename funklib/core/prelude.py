@@ -60,3 +60,9 @@ def singleton(*args, **kwargs):
     return decorator
 
 
+def throw(ex):
+    raise ex
+
+
+def thrower(excf):
+    return lambda x:throw(excf(x))

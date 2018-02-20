@@ -28,6 +28,7 @@ class Foldable(abc.ABC):
 
     @abc.abstractmethod
     def fold(self):
+        """Folds using item's monoid instance"""
         return self.fold_map(basics.identity)
 
     
