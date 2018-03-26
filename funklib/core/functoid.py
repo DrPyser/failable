@@ -1,38 +1,107 @@
-from abc import ABC, ABCMeta
-from currying import curried, curry
-from functools import wraps, partial
+import abc
+from functools import wraps, partial, reduce
 
-class Functoid(partial):
-    """Wrapper class for functions and callables"""
 
-    def __init__(self, function, *args, **kwargs):
-        super().__init__()
-        self.__name__ = function.__name__
-        self.__doc__ = function.__doc__
+class Functoidal(abc.ABC):
+    """Abstract base class for callables"""
+    __slots__ = ()
 
+    @abc.abstractmethod
     def before(self, f):
-        return Functoid(lambda *args, **kwargs: f(self(*args, **kwargs)))
-    
-    def after(self, f):
-        return Functoid(lambda *args, **kwargs: self(f(*args, **kwargs)))
+        pass
 
+    @abc.abstractmethod
+    def after(self, f):
+        pass
+
+    @abc.abstractmethod
     def flip(self):
-        return Functoid(lambda *args, **kwargs: self.func(*reversed(args), **kwargs))
+        pass
 
     def __rshift__(self, f):
         return self.before(f)
 
-    def __lshift__(self, f):
+    def __rrshift__(self, f):
         return self.after(f)
 
+    def __rlshift__(self, f):
+        return self.before(f)
+
+    @abc.abstractmethod
     def curry(self, *args, **kwargs):
-        return Functoid(self.func, *self.args, *args, **dict(self.kwargs, **kwargs))
+        pass
+    
+    @abc.abstractmethod
+    def uncurry(self):
+        pass
+
+    def __ror__(self, value):
+        return self(value)
+
+
+class compose(Functoidal, tuple):
+    def __new__(cls, *callables):
+        if len(callables) == 0:
+            raise ValueError("At least one callable must be provided")
+        return tuple.__new__(cls, callables)
+
+    def __call__(self, *args, **kwargs):
+        return reduce(lambda acc, f: f(acc), self[1:], self[0](*args, **kwargs))
+
+    def curry(self, *args, **kwargs):
+        return Functoid(self, *args, **kwargs)
+
+    def uncurry(self):
+        return Functoid(lambda args: self(*args))
+
+    def flip(self):
+        return Functoid(lambda *args, **kwargs: self(*reversed(args), **kwargs))
+
+    def before(self, f):
+        return compose(*self, f)
+
+    def after(self, f):
+        return compose(f, *self)
+
+    def __get__(self, instance, owner):
+        func = lambda *args, **kwargs: self(*args, **kwargs)
+        return Functoid(func.__get__(instance, owner))
+
+    def __set__(self, instance, value):
+        func = lambda *args, **kwargs: self(*args, **kwargs)
+        func.__set__(instance, value)
+
+    def __repr__(self):
+        return "compose({})".format(
+            ", ".join(map(repr, self))
+        )
+    
+
+class Functoid(Functoidal, partial):
+    """Wrapper class for callables with functional interface"""
+    
+    def __init__(self, function, *args, **kwargs):
+        partial.__init__(self)
+        self.__name__ = function.__name__
+        self.__doc__ = function.__doc__
+        
+    def before(self, f):
+        return compose(self, f)
+    
+    def after(self, f):
+        return compose(f, self)
+
+    def flip(self):
+        return Functoid(lambda *args, **kwargs: self.func(*reversed(args), **kwargs))
+
+    def curry(self, *args, **kwargs):
+        return Functoid(self.func, *self.args, *args, **dict(self.keywords, **kwargs))
     
     def uncurry(self):
         return Functoid(lambda args: self(*args))
 
     def __repr__(self):
-        return "<functoid of {}:({},{})>".format(self.func, self.args, self.keywords)
+        return "Functoid(name={}, func={!r}, args={!r}, kwargs={!r})".format(self.__name__, self.func, self.args, self.keywords)
 
     def __str__(self):
         return "Functoid {}".format(self.__name__)
@@ -43,9 +112,9 @@ class Functoid(partial):
     def __set__(self, instance, value):
         return self.func.__set__(instance, value)
 
-
-def functoid(f):
-    return wraps(f)(Functoid(f))
+    
+def functoid(f, *args, **kwargs):
+    return wraps(f)(Functoid(f, *args, **kwargs))
 
 
 class FunctoidDescriptor:

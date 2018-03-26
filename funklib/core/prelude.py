@@ -1,5 +1,6 @@
 ## Basic simple functional programming tools
 import functools as ft
+import itertools as it
 
 def identity(x):
     return x
@@ -60,9 +61,27 @@ def singleton(*args, **kwargs):
     return decorator
 
 
-def throw(ex):
+def throw(ex: Exception):
     raise ex
 
 
 def thrower(excf):
+    """Create a function that produce an exception from its argument and raises it"""
     return lambda x:throw(excf(x))
+
+
+def comp(p):
+    """Complement of a predicate"""
+    return lambda x: not p(x)
+
+
+def sep_by(pred, iterable):
+    """Separate an iterable's elements into two groups according to a predicate"""
+    a, b = it.tee(iterable)
+    return filter(pred, a), it.filterfalse(pred, b)
+
+
+def split_by(pred, iterable):
+    """Split an iterable in two according to a predicate"""
+    a, b = it.tee(iterable)
+    return it.takewhile(pred, a), it.dropwhile(pred, b)

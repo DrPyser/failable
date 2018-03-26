@@ -4,6 +4,7 @@ import functools
 import itertools
 from funklib import basics
 
+
 class Foldable(abc.ABC):
     @abc.abstractmethod
     def foldl(self, f, init):
@@ -254,9 +255,3 @@ class Right(Either):
     def __new__(cls, x):
         return tuple.__new__(cls, (x,))
     
-
-def throw(ex):
-    raise ex
-
-def thrower(excf):
-    return lambda x:throw(excf(x))

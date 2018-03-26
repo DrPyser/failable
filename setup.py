@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(name='funklib',
       version='0.5',
@@ -8,5 +8,5 @@ setup(name='funklib',
       author='drpyser',
       author_email='schok53@gmail.com',
       url='https://github.com/DrPyser/funklib',
-      packages=['funklib', 'multimethods', 'datatypes', 'core'],
+      packages=find_packages(exclude=["multimethods"]),
      )
