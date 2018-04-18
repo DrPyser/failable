@@ -1,162 +1,56 @@
 from abc import abstractmethod
-from itertools import tee
-from ..currying import curry
-from .adt import data
-from .functionals import (Monad,)
-from typing import Any
-from ..patmat import MatchFailure
+import itertools as it
+import functools as ft
+import funklib.core.prelude as prelude
+import abc
 
-@Monad.register
-class Maybe(data):
-    """Result of a partial computation(computation not defined onn all its inputs)"""
-#    __functoid_include__ = locals()
-    @abstractmethod
-    def is_just(self):
-        raise NotImplementedError()
+#@Monad.register
+class Maybe(abc.ABC):
+    __slots__ = ()
+    def maybe(self, something, default):
+        if isinstance(self, Something):
+            return something(*self)
+        elif isinstance(self, Nothing):
+            return default
+        else:
+            raise TypeError
 
-    @abstractmethod
+    def is_something(self):
+        return self.maybe(prelude.const(True), False)
+
     def is_nothing(self):
-        raise NotImplementedError()
+        return self.maybe(prelude.const(False), True)
 
-    @abstractmethod
-    def from_just(self):
-        raise NotImplementedError()
+    def flatmap(self, f):
+        return self.maybe(f, self)
 
-    @abstractmethod
-    def __rshift__(self, other):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def maybe(self, something, nothing):
-        pass
-    
-    @classmethod
-    def pure(cls, x):
-        return Just(x)
+    def map(self, f):
+        return self.maybe(prelude.compose(Something, f), self)
 
     @classmethod
-    def fail(cls, x):
-        return Nothing()
+    def from_exceptions(cls, *exceptions):
+        def decorator(f):
+            @ft.wraps
+            def wrapper(*args, **kwargs):
+                try:
+                    result = f(*args, **kwargs)
+                except exceptions:
+                    return Nothing
+                else:
+                    return Something(result)
 
-    @staticmethod
-    def from_none(value):
-        if value is None:
-            return Nothing()
-        else:
-            return Just(value)
 
-    @staticmethod
-    def from_truthiness(value):
-        if value:
-            return Just(value)
-        else:
-            return Nothing()
+@prelude.tupleclass("value")
+class Something(Maybe): pass
 
-    @staticmethod
-    def validate(pred, value):
-        if pred(value):
-            return Just(value)
-        else:
-            return Nothing()
-
-    @staticmethod
-    def invalidate(pred, value):
-        if not pred(value):
-            return Just(value)
-        else:
-            return Nothing()
-
-    @staticmethod
-    @curry(2, True)
-    def catch(exns, f, *args, **kwargs):
-        try:
-            return Just(f(*args, **kwargs))
-        except exns:
-            return Nothing()
-
-    def collect(maybes):
-        (maybes, maybes2) = tee(maybes)
-        if any(x.is_nothing() for x in maybes):
-            return Nothing()
-        else:
-            return Just(tuple(x.value for x in maybes2))
-        
-        
-class Nothing(Maybe, cached=True):
-    _fields = ()
-
-    def is_just(self):
-        return False
+#@prelude.singleton()
+@prelude.tupleclass()
+class Nothing(Maybe):
     
-    def is_nothing(self):
-        return True
-    
-    def then(self, f):
-        return self
 
-    def fmap(self, f):
-        return self
-
-    def ap(self, other):
-        return self
-
-    def join(self):
-        return self
-        
-    def from_just(self, default=None):
-        return default
-
-    def __repr__(self):
-        return "Nothing"
-
-    def __add__(self, other):
-        return self
-
-    def __rshift__(self, other):
-        return self
-
-    def maybe(self, something, nothing):
-        return nothing()
-
-
-class Just(Maybe):
-    value: Any
-    
-    def is_just(self):
-        return True
-    
-    def is_nothing(self):
-        return False
-
-    def fmap(self, f):
-        return Just(f(self.value))
-
-    def then(self, f):
-        return f(self.value)
-
-    def ap(self, other):
-        return other.fmap(self.value)
-
-    def from_just(self, default=None):
-        return self.value
-
-    def __rshift__(self, other):
-        return other
-
-    def __repr__(self):
-        return "Just({!r})".format(self.value)
-
-    def __add__(self, other):
-        if other.is_just():
-            return Just(self.value + other.value)
-        else:
-            return other
-
-    def maybe(self, something, nothing):
-        return something(self.value)
 
 if __name__ == "__main__":
-    @Maybe.catch((Exception,))
+    @Maybe.from_exceptions((Exception,))
     def test(x):
         if x:
             return x
