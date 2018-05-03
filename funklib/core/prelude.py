@@ -154,3 +154,9 @@ def itemfilter(pred: Predicate[Tuple[K,V]], m: Mapping[K, V]) -> Mapping[K, V]:
         for k, v in m.items()
         if pred((k,v))
     }
+
+def seq(*args):
+    return args[-1]
+
+
+_missing = namedtuple("_missing", ())

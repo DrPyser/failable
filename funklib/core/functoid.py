@@ -1,6 +1,10 @@
 import abc
-from functools import wraps, partial, reduce
+from functools import wraps, partial, reduce, update_wrapper
+import logging
 
+logging.basicConfig()
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 
 class Functoidal(abc.ABC):
     """Abstract base class for callables"""
@@ -19,13 +23,20 @@ class Functoidal(abc.ABC):
         pass
 
     def __rshift__(self, f):
+        LOGGER.info("composing {} before {}".format(self, f))
         return self.before(f)
 
     def __rrshift__(self, f):
+        LOGGER.info("composing {} after {}".format(self, f))
         return self.after(f)
 
     def __rlshift__(self, f):
+        LOGGER.info("composing {} before {}".format(self, f))
         return self.before(f)
+
+    def __lshift__(self, f):
+        LOGGER.info("composing {} after {}".format(self, f))
+        return self.after(f)
 
     @abc.abstractmethod
     def curry(self, *args, **kwargs):
@@ -82,8 +93,7 @@ class Functoid(Functoidal, partial):
     
     def __init__(self, function, *args, **kwargs):
         partial.__init__(self)
-        self.__name__ = function.__name__
-        self.__doc__ = function.__doc__
+        update_wrapper(self, function)
         
     def before(self, f):
         return compose(self, f)
@@ -101,10 +111,10 @@ class Functoid(Functoidal, partial):
         return Functoid(lambda args: self(*args))
 
     def __repr__(self):
-        return "Functoid(name={}, func={!r}, args={!r}, kwargs={!r})".format(self.__name__, self.func, self.args, self.keywords)
+        return "Functoid(name={}, func={!r}, args={!r}, kwargs={!r})".format(getattr(self, "__name__", None), self.func, self.args, self.keywords)
 
     def __str__(self):
-        return "Functoid {}".format(self.__name__)
+        return "Functoid {}".format(getattr(self, "__name__", None))
 
     def __get__(self, instance, owner):
         return Functoid(self.func.__get__(instance, owner), *self.args, **self.keywords)
