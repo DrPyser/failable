@@ -55,17 +55,17 @@ def flatten(it: Iterable[Iterable[T]]) -> Iterable[T]:
         yield from x
 
         
-def caller(*args, **kwargs) -> Callable[[Callable[..., T]], T]:
-    """Creates a function which calls its input on the arguments"""
+def call_with(*args, **kwargs):
+    """
+    Create a decorator to call the decorated callable 
+    directly with supplied arguments.
+    """
     return lambda f: f(*args, **kwargs)
 
-    
-def singleton(*args, **kwargs):
-    """Decorator which replaces a class definition
-    by an instance of this class"""
-    def decorator(f):
-        return f(*args, **kwargs)
-    return decorator
+
+caller = call_with
+singleton = call_with
+
 
 
 def throw(ex: Exception) -> None:
@@ -118,6 +118,15 @@ def project(obj: T, keys: Iterable[str], accessor: Callable[[T, str], V]=op.geti
     }
 
 
+def projector(fields: Iterable[str], accessor: Callable[[T, str], Any]=getattr) -> Callable[[T], Dict[str, Any]]:
+    def _projector(obj: T):
+        return {
+            k: accessor(obj, k)
+            for k in fields
+        }
+    return _projector
+
+
 def get(k: K, default:T=None) -> Callable[[Mapping[K, V]], Union[V,T]]:
     return op.methodcaller("get", k, default)
 
@@ -148,6 +157,7 @@ def valfilter(pred: Predicate[V], m: Mapping[K, V]) -> Mapping[K, V]:
         if pred(v)
     }
 
+
 def itemfilter(pred: Predicate[Tuple[K,V]], m: Mapping[K, V]) -> Mapping[K, V]:
     return {
         k: v
@@ -155,8 +165,46 @@ def itemfilter(pred: Predicate[Tuple[K,V]], m: Mapping[K, V]) -> Mapping[K, V]:
         if pred((k,v))
     }
 
+
 def seq(*args):
     return args[-1]
 
 
-_missing = namedtuple("_missing", ())
+_missing = namedtuple("_missing", ())()
+
+
+class class_property:
+    def __init__(self, getter, setter=None):
+        self._getter = getter
+        self._setter = setter
+
+    def __get__(self, instance, owner):
+        if owner is not None:
+            return self._getter(owner)
+        elif instance is not None:
+            return self._getter(instance.__class__)
+        
+    def __set_name__(self, owner, name):
+        self.__name__ = name
+
+        
+class cached_class_property:
+    def __init__(self, getter, setter=None):
+        self._getter = getter
+        self._setter = setter
+        self._cached_value = None
+        self._cached = False
+
+    def __get__(self, instance, owner):
+        if self._cached:
+            return self._cached_value
+        elif owner is not None:
+            self._cached_value = value = self._getter(owner)
+            return value
+        elif instance is not None:
+            self._cached_value = value = self._getter(instance.__class__)
+            return value
+
+    def __set_name__(self, owner, name):
+        self.__name__ = name
+        
